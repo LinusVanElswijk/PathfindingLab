@@ -1,0 +1,231 @@
+#include "Map.h"
+
+namespace benchmarking
+{
+namespace task
+{
+    Map::Map()
+	 width(0),
+     height(0)
+	{
+		tile = new bool*[0];
+	}
+	
+	Map::Map(const std::string& fileName)
+	:fileName(fileName)
+	{	
+		using std::ifstream;
+		using std::string;
+		
+		ifstream inputStream(fileName.c_str(), ifstream::in);
+		
+		if( inputStream.fail() )
+		{
+			throw exceptions::FileAccessException(fileName);
+		}
+		
+		readType(inputStream);
+		readHeight(inputStream);
+		readWidth(inputStream);
+		initializeTiles();
+		readMap(inputStream);
+	}
+	
+	
+	Map::Map(const Map& sourceMap)
+	:fileName(sourceMap.fileName),
+	 type(sourceMap.type)
+	{	
+		copyMap(sourceMap);
+	}
+	
+	
+	Map::~Map()
+	{
+		deleteMap();
+	}
+	
+	Map& Map::operator= (const Map& otherMap)
+	{	
+		if(&otherMap==this)
+		{
+			return *this;
+		}
+		
+		fileName = otherMap.fileName;
+		
+		deleteMap();
+		copyMap(otherMap);
+		
+		type = otherMap.type;
+		
+		return* this;
+	}
+	
+	bool Map::isWalkable(const unsigned int& x, const unsigned int& y) const
+	{	
+		if( x > this->width || y > this->height )
+		{
+			throw std::out_of_range(exceptions::FileLoadingException::outOfRangeMessage(x, y));
+		}
+		
+		return tile[y][x];
+	}
+	
+	unsigned int Map::getWidth() const
+	{
+		return this->width;
+	}
+	
+	unsigned int Map::getHeight() const
+	{
+		return this->height;
+	}
+	
+	std::string Map::getFileName() const
+	{
+		return fileName;
+	}
+	
+	void Map::readType(std::ifstream &inputStream)
+	{
+		using namespace std;
+
+		string input;
+		inputStream >> input;
+
+		if( input.compare("type") != 0 )
+		{	
+			throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedStringMessage("type", input) );
+		}
+		
+		inputStream >> this->type;
+	}
+	
+	void Map::readWidth(std::ifstream &inputStream)
+	{
+		using namespace std;
+		
+		string input;
+		inputStream >> input;
+
+		if( input.compare("width") != 0 )
+		{	
+			throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedStringMessage("width", input) );
+		}
+		
+		inputStream >> this->width;
+	}
+	
+	void Map::readHeight(std::ifstream &inputStream)
+	{
+		using namespace std;
+		
+		string input;
+		inputStream >> input;
+
+		if( input.compare("height") != 0 )
+		{	
+			throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedStringMessage("height", input) );
+		}
+		
+		inputStream >> this->height;
+	}
+	
+	void Map::readMap(std::ifstream &inputStream)
+	{
+		using namespace std;
+		
+		string input;
+		inputStream >> input;
+
+		if( input.compare("map") != 0 )
+		{	
+			throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedStringMessage("map", input) );
+		}
+	
+		readTiles(inputStream);
+	}
+	
+	void Map::readTiles(std::ifstream &inputStream)
+	{	
+		for(unsigned int row = 0; row < height; row++)
+		{	
+			char c;
+			inputStream.get(c);
+			
+			if(c != '\n')
+			{	
+				throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedCharMessage('\n', c) );
+			}
+			
+			readTileRow(row, inputStream);
+		}
+	}
+	
+	void Map::readTileRow(const unsigned int& row, std::ifstream &inputStream)
+	{
+		for(unsigned int column = 0; column < width; column++)
+		{	
+			char c;
+			inputStream.get(c);
+				
+			switch(c)
+			{
+				case '.': case 'G': case 'S':
+					this->tile[row][column] = true;
+					break;
+				
+				case '@': case 'O': case 'T': case 'W':
+					this->tile[row][column] = false;
+					break;
+						
+				default:
+					throw MapLoadingException( this->fileName, exceptions::FileLoadingException::unexpectedCharMessage(".GS@OTW", c).c_str() );
+			}
+		}
+	}
+	
+	inline void Map::initializeTiles()
+	{
+		this->tile = new bool*[height];
+		for(unsigned int row = 0; row < height; row++)
+		{
+			this->tile[row] = new bool[width];
+		}
+	}
+	
+	inline void Map::deleteMap()
+	{
+		for(unsigned int row = 0; row < height; row++)
+		{
+			delete[] tile[row];
+		}
+		
+		delete[] tile;
+	}
+	
+	void Map::copyMap(const Map& otherMap)
+	{
+		width = otherMap.width;
+		height = otherMap.height;
+		
+		tile = new bool*[height];
+		
+		for(unsigned int row = 0; row < height; row++)
+		{	
+			tile[row] = new bool[width];
+			
+			for(unsigned int column = 0; column < width; column++)
+			{
+				tile[row][column] = otherMap.tile[row][column];
+			}
+		}
+	}
+	
+	Map::MapLoadingException::MapLoadingException(const std::string& filePath, const std::string& what) throw()
+	:FileLoadingException(filePath, what)
+	{}
+
+}
+}
